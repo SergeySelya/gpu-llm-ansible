@@ -31,7 +31,7 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "GPU util",
+      "title": "GPU",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -91,7 +91,7 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "VRAM занято",
+      "title": "VRAM",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -151,7 +151,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Температура GPU",
+      "title": "Темп. GPU",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -209,7 +209,7 @@
     {
       "id": 5,
       "type": "stat",
-      "title": "Мощность GPU",
+      "title": "Мощность",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -250,7 +250,7 @@
     {
       "id": 6,
       "type": "stat",
-      "title": "Запросов в работе",
+      "title": "В работе",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -291,7 +291,7 @@
     {
       "id": 7,
       "type": "stat",
-      "title": "Запросов в очереди",
+      "title": "В очереди",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
