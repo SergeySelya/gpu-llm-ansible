@@ -2,7 +2,7 @@
 
 Плейбук готовит чистый Ubuntu-сервер с NVIDIA GPU и поднимает на нём LLM с OpenAI-совместимым API:
 
-1. Драйвер NVIDIA из архива Ubuntu (серверная ветка R580), перезагрузка, только если драйвер поставился.
+1. Драйвер NVIDIA из архива Ubuntu (серверная ветка R580, open-модули ядра: они нужны для Blackwell и работают на всех GPU от Turing), перезагрузка, только если драйвер поставился.
 2. NVIDIA Container Toolkit и Docker Engine с compose-плагином. Runtime `nvidia` прописан в `daemon.json`.
 3. vLLM v0.34.0 с моделью из Hugging Face. По умолчанию это `Qwen/Qwen2.5-1.5B-Instruct`: без токена HF, влезает в 8 ГБ видеопамяти.
 4. Перед vLLM стоит nginx: TLS, allowlist по сетям, rate limit. Сам vLLM наружу не опубликован.
@@ -236,7 +236,7 @@ group_vars/all/main.yml       # основные настройки
 group_vars/all/vault.yml      # секреты (шаблон: vault.yml.example)
 inventory/hosts.yml           # сервера (шаблон: hosts.yml.example)
 roles/common                  # проверка ОС, базовые пакеты, UFW
-roles/nvidia_driver           # драйвер R580-server, Fabric Manager (опционально), persistenced
+roles/nvidia_driver           # драйвер R580-server (open-модули), Fabric Manager (опционально), persistenced
 roles/nvidia_toolkit          # NVIDIA Container Toolkit
 roles/docker                  # Docker CE, daemon.json с runtime nvidia и ротацией логов
 roles/llm                     # compose: vLLM + nginx + dcgm-exporter, проверка (verify.yml)

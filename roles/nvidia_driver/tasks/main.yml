@@ -16,10 +16,17 @@
   changed_when: false
   failed_when: false
 
-- name: Install driver when target branch is not active
+- name: Read loaded kernel module license (open or proprietary)
+  ansible.builtin.command: modinfo -F license nvidia
+  register: nvidia_driver_license
+  changed_when: false
+  failed_when: false
+
+- name: Install driver when target branch or module flavour is not active
   when: >-
     nvidia_driver_current.rc != 0
     or not nvidia_driver_current.stdout_lines[0] is match(nvidia_driver_branch ~ '\.')
+    or (nvidia_driver_license.stdout is search('MIT')) != (nvidia_driver_open | bool)
   block:
     - name: Install ubuntu-drivers-common
       ansible.builtin.apt:
@@ -29,7 +36,9 @@
     # Ставит подписанные Canonical prebuilt-модули (linux-modules-nvidia-*),
     # поэтому работает с Secure Boot и не требует DKMS
     - name: Install NVIDIA server driver via ubuntu-drivers
-      ansible.builtin.command: ubuntu-drivers install --gpgpu nvidia:{{ nvidia_driver_branch }}-server
+      ansible.builtin.command: >-
+        ubuntu-drivers install --gpgpu
+        nvidia:{{ nvidia_driver_branch }}-server{{ '-open' if nvidia_driver_open | bool else '' }}
       changed_when: true
       notify: Reboot to load NVIDIA kernel module
 

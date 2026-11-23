@@ -2,6 +2,9 @@
 # Ветка серверного драйвера из архива Ubuntu (пакеты *-server).
 # vLLM v0.34 собран на CUDA 13.0, ему нужен драйвер R580+.
 nvidia_driver_branch: "580"
+# Open-модули ядра: обязательны для Blackwell (B200, RTX PRO 6000),
+# поддерживают все GPU от Turing. false - проприетарный модуль.
+nvidia_driver_open: true
 nvidia_driver_min_major: 580
 # CUDA 13 не поддерживает Maxwell/Pascal/Volta, нужен Turing (7.5) и новее
 nvidia_driver_min_compute_cap: 7.5
