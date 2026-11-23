@@ -46,6 +46,8 @@ services:
     depends_on:
       vllm:
         condition: service_started
+    ulimits:
+      nofile: {soft: 65535, hard: 65535}
     ports:
       - "{{ llm_listen_address }}:{{ llm_https_port }}:443"
     volumes:

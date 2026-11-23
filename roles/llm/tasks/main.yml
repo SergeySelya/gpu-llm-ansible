@@ -59,9 +59,10 @@
       - -days
       - "825"
       - -subj
-      - "/CN={{ llm_server_name }}"
+      # CN ограничен 64 символами (FQDN в GCP бывает длиннее), полное имя - в SAN
+      - "/CN={{ ansible_hostname }}"
       - -addext
-      - "subjectAltName=DNS:{{ llm_server_name }},IP:{{ ansible_default_ipv4.address }},IP:127.0.0.1"
+      - "subjectAltName=DNS:{{ llm_server_name }},DNS:{{ ansible_hostname }},IP:{{ ansible_default_ipv4.address }},IP:127.0.0.1"
       - -keyout
       - "{{ llm_base_dir }}/certs/tls.key"
       - -out
