@@ -226,7 +226,7 @@ scrape_configs:
 
 ## Проверено на T4
 
-Стенд: GCP `n1-standard-4` + 1× Tesla T4 (16 ГБ, compute 7.5), Ubuntu 24.04.5 LTS, ядро `7.0.0-gcp`, **Secure Boot включён**. Плейбук прогонялся на чистой ВМ.
+Стенд: GCP `n1-standard-4` + 1× Tesla T4 (16 ГБ, compute 7.5), Ubuntu 24.04.5 LTS, ядро `7.0.0-gcp`, **Secure Boot включён**. Плейбук прогонялся на чистой ВМ. Полные выводы со стенда по каждой проверке: [docs/test-run.md](docs/test-run.md).
 
 | Что проверяли | Результат |
 |---|---|
