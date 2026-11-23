@@ -7,3 +7,6 @@ vault_llm_api_key: "CHANGE_ME"
 
 # Токен Hugging Face, нужен только для gated-моделей (Llama, Gemma и т.п.)
 vault_hf_token: ""
+
+# Пароль admin в Grafana. Пусто - сгенерируется и сохранится в credentials/ на control node
+vault_grafana_admin_password: ""

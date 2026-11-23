@@ -1,0 +1,25 @@
+---
+# Локальный Prometheus + Grafana на самом GPU-сервере.
+# Если есть центральный Prometheus - выключить и скрейпить dcgm-exporter и vLLM оттуда (см. README).
+monitoring_enabled: true
+
+monitoring_base_dir: /opt/monitoring
+monitoring_prometheus_image: "prom/prometheus:v3.15.1"
+monitoring_grafana_image: "grafana/grafana:13.2.6"
+
+# Порты слушают только loopback: доступ через SSH-туннель
+monitoring_listen_address: "127.0.0.1"
+monitoring_prometheus_port: 9090
+monitoring_grafana_port: 3000
+monitoring_check_host: "{{ '127.0.0.1' if monitoring_listen_address == '0.0.0.0' else monitoring_listen_address }}"
+
+monitoring_retention: "15d"
+monitoring_scrape_interval: "15s"
+
+monitoring_grafana_admin_password: >-
+  {{ vault_grafana_admin_password | default(lookup('ansible.builtin.password',
+  'credentials/' ~ inventory_hostname ~ '-grafana-admin chars=ascii_letters,digits length=24'), true) }}
+
+# Пороги алертов
+monitoring_alert_gpu_temp_c: 85
+monitoring_alert_kv_cache_ratio: 0.95

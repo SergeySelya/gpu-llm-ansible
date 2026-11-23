@@ -1,0 +1,45 @@
+# {{ ansible_managed }}
+name: monitoring
+
+services:
+  prometheus:
+    image: {{ monitoring_prometheus_image }}
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time={{ monitoring_retention }}
+      - --web.enable-lifecycle
+    ports:
+      - "{{ monitoring_listen_address }}:{{ monitoring_prometheus_port }}:9090"
+    volumes:
+      - {{ monitoring_base_dir }}/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    networks: [llm]
+
+  grafana:
+    image: {{ monitoring_grafana_image }}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/llm-gpu.json
+    ports:
+      - "{{ monitoring_listen_address }}:{{ monitoring_grafana_port }}:3000"
+    volumes:
+      - {{ monitoring_base_dir }}/grafana/provisioning:/etc/grafana/provisioning:ro
+      - {{ monitoring_base_dir }}/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus]
+    networks: [llm]
+
+volumes:
+  prometheus-data: {}
+  grafana-data: {}
+
+# Подключаемся к сети стека llm, чтобы скрейпить vllm:8000 и dcgm-exporter:9400 по именам
+networks:
+  llm:
+    name: {{ llm_project_name | default('llm') }}_llm
+    external: true

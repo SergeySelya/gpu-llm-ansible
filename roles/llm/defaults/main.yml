@@ -50,6 +50,12 @@ llm_monitoring_enabled: true
 llm_dcgm_exporter_listen_address: "127.0.0.1"
 llm_dcgm_exporter_port: 9400
 
+# Перезапуск контейнеров в состоянии unhealthy (systemd-таймер раз в минуту)
+llm_watchdog_enabled: true
+llm_watchdog_projects:
+  - "{{ llm_project_name }}"
+  - monitoring
+
 # Первый старт качает модель с HF, поэтому ждём долго
 llm_health_retries: 90
 llm_health_delay: 10

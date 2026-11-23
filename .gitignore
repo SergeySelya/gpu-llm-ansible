@@ -3,3 +3,4 @@ inventory/hosts.yml
 group_vars/all/vault.yml
 .vault_pass
 *.retry
+credentials/

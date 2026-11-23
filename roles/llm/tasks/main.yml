@@ -90,6 +90,52 @@
     pull: missing
     remove_orphans: true
 
+- name: Install watchdog for unhealthy containers
+  when: llm_watchdog_enabled | bool
+  block:
+    - name: Install watchdog script
+      ansible.builtin.template:
+        src: llm-watchdog.sh.j2
+        dest: /usr/local/bin/llm-watchdog
+        mode: "0755"
+
+    - name: Install watchdog systemd units
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ item.name }}"
+        content: "{{ item.content }}"
+        mode: "0644"
+      loop:
+        - name: llm-watchdog.service
+          content: |
+            [Unit]
+            Description=Restart unhealthy LLM containers
+            After=docker.service
+            Requires=docker.service
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/llm-watchdog
+        - name: llm-watchdog.timer
+          content: |
+            [Unit]
+            Description=Run llm-watchdog every minute
+
+            [Timer]
+            OnBootSec=5min
+            OnUnitActiveSec=1min
+
+            [Install]
+            WantedBy=timers.target
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Enable watchdog timer
+      ansible.builtin.systemd_service:
+        name: llm-watchdog.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+
 - name: Apply nginx config changes before checks
   ansible.builtin.meta: flush_handlers
 

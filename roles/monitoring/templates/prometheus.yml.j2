@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+global:
+  scrape_interval: {{ monitoring_scrape_interval }}
+  evaluation_interval: {{ monitoring_scrape_interval }}
+  external_labels:
+    host: {{ inventory_hostname }}
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: vllm
+    static_configs:
+      - targets: ["vllm:8000"]
+{% if llm_monitoring_enabled | default(true) | bool %}
+
+  - job_name: dcgm
+    static_configs:
+      - targets: ["dcgm-exporter:9400"]
+{% endif %}
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

@@ -7,6 +7,7 @@ rules:
     max: 140
   truthy:
     allowed-values: ["true", "false"]
+  comments-indentation: false
   comments:
     min-spaces-from-content: 1
   braces:

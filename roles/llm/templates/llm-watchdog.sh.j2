@@ -1,0 +1,14 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Docker сам не перезапускает контейнер в состоянии unhealthy (например, vLLM завис, но процесс жив).
+# Таймер llm-watchdog.timer раз в минуту перезапускает такие контейнеры стеков ниже.
+set -eu
+for project in {{ llm_watchdog_projects | join(' ') }}; do
+  ids=$(docker ps -q --filter "label=com.docker.compose.project=${project}" --filter health=unhealthy)
+  if [ -n "$ids" ]; then
+    for id in $ids; do
+      echo "restarting unhealthy container $(docker inspect -f '{{ '{{' }}.Name{{ '}}' }}' "$id") (project ${project})"
+      docker restart "$id" >/dev/null
+    done
+  fi
+done

@@ -1,0 +1,105 @@
+---
+- name: Deploy Prometheus and Grafana
+  when: monitoring_enabled | bool
+  block:
+    - name: Create monitoring directories
+      ansible.builtin.file:
+        path: "{{ monitoring_base_dir }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - ""
+        - prometheus
+        - grafana/provisioning/datasources
+        - grafana/provisioning/dashboards
+        - grafana/dashboards
+
+    - name: Render Prometheus config and alert rules
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "{{ monitoring_base_dir }}/prometheus/{{ item }}"
+        mode: "0644"
+      loop:
+        - prometheus.yml
+        - alerts.yml
+      notify: Reload Prometheus
+
+    - name: Validate Prometheus config and rules with promtool
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --entrypoint=promtool
+          - -v
+          - "{{ monitoring_base_dir }}/prometheus:/etc/prometheus:ro"
+          - "{{ monitoring_prometheus_image }}"
+          - check
+          - config
+          - /etc/prometheus/prometheus.yml
+      changed_when: false
+
+    - name: Install Grafana provisioning
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ monitoring_base_dir }}/grafana/{{ item.dest }}"
+        mode: "0644"
+      loop:
+        - { src: datasource.yml, dest: provisioning/datasources/prometheus.yml }
+        - { src: dashboards.yml, dest: provisioning/dashboards/llm.yml }
+        - { src: llm-gpu.json, dest: dashboards/llm-gpu.json }
+      notify: Restart Grafana
+
+    - name: Write Grafana admin password
+      ansible.builtin.copy:
+        content: "GF_SECURITY_ADMIN_PASSWORD={{ monitoring_grafana_admin_password }}\n"
+        dest: "{{ monitoring_base_dir }}/.env"
+        mode: "0600"
+      no_log: true
+
+    - name: Render monitoring compose project
+      ansible.builtin.template:
+        src: compose.yml.j2
+        dest: "{{ monitoring_base_dir }}/compose.yml"
+        mode: "0644"
+
+    - name: Start monitoring stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ monitoring_base_dir }}"
+        state: present
+        pull: missing
+        remove_orphans: true
+
+    - name: Apply config changes before checks
+      ansible.builtin.meta: flush_handlers
+
+    - name: Wait until Prometheus scrapes all targets
+      ansible.builtin.uri:
+        url: "http://{{ monitoring_check_host }}:{{ monitoring_prometheus_port }}/api/v1/targets?state=active"
+        return_content: true
+      register: monitoring_targets
+      until: >-
+        monitoring_targets.status == 200
+        and monitoring_targets.json.data.activeTargets | length > 0
+        and monitoring_targets.json.data.activeTargets | rejectattr('health', 'eq', 'up') | list | length == 0
+      retries: 12
+      delay: 10
+      tags: [verify]
+
+    - name: Check Grafana is healthy
+      ansible.builtin.uri:
+        url: "http://{{ monitoring_check_host }}:{{ monitoring_grafana_port }}/api/health"
+      register: monitoring_grafana_health
+      until: monitoring_grafana_health.status == 200
+      retries: 12
+      delay: 5
+      tags: [verify]
+
+    - name: Show how to open Grafana
+      ansible.builtin.debug:
+        msg: >-
+          ssh -L {{ monitoring_grafana_port }}:127.0.0.1:{{ monitoring_grafana_port }}
+          {{ ansible_user | default('') }}@{{ ansible_host | default(inventory_hostname) }},
+          then http://localhost:{{ monitoring_grafana_port }} (admin, password: vault_grafana_admin_password
+          or credentials/{{ inventory_hostname }}-grafana-admin on the control node)
+      tags: [verify]
