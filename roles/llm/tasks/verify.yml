@@ -1,0 +1,81 @@
+---
+- name: Set check endpoints
+  ansible.builtin.set_fact:
+    llm_check_url: "https://{{ _api_host }}:{{ llm_https_port }}"
+    llm_dcgm_check_url: "http://{{ _dcgm_host }}:{{ llm_dcgm_exporter_port }}/metrics"
+  vars:
+    _api_host: "{{ '127.0.0.1' if llm_listen_address == '0.0.0.0' else llm_listen_address }}"
+    _dcgm_host: "{{ '127.0.0.1' if llm_dcgm_exporter_listen_address == '0.0.0.0' else llm_dcgm_exporter_listen_address }}"
+
+- name: Wait until model is loaded (first start downloads weights)
+  ansible.builtin.uri:
+    url: "{{ llm_check_url }}/health"
+    validate_certs: false
+    status_code: 200
+  register: llm_health
+  until: llm_health.status == 200
+  retries: "{{ llm_health_retries }}"
+  delay: "{{ llm_health_delay }}"
+
+- name: Check request without API key is rejected
+  ansible.builtin.uri:
+    url: "{{ llm_check_url }}/v1/models"
+    validate_certs: false
+    status_code: 401
+
+- name: List served models
+  ansible.builtin.uri:
+    url: "{{ llm_check_url }}/v1/models"
+    validate_certs: false
+    headers:
+      Authorization: "Bearer {{ llm_api_key }}"
+    return_content: true
+  register: llm_models
+  no_log: true
+
+- name: Check served model name
+  ansible.builtin.assert:
+    that: llm_served_model_name in (llm_models.json.data | map(attribute='id'))
+    fail_msg: "Model {{ llm_served_model_name }} not in /v1/models"
+    quiet: true
+
+- name: Send test chat completion
+  ansible.builtin.uri:
+    url: "{{ llm_check_url }}/v1/chat/completions"
+    method: POST
+    validate_certs: false
+    headers:
+      Authorization: "Bearer {{ llm_api_key }}"
+    body_format: json
+    body:
+      model: "{{ llm_served_model_name }}"
+      messages:
+        - role: user
+          content: "{{ llm_smoke_prompt }}"
+      max_tokens: 16
+      temperature: 0
+    timeout: 120
+  register: llm_completion
+  no_log: true
+
+- name: Check completion is not empty
+  ansible.builtin.assert:
+    that: llm_completion.json.choices[0].message.content | trim | length > 0
+    fail_msg: "Empty completion from {{ llm_served_model_name }}"
+    quiet: true
+
+- name: Show model reply
+  ansible.builtin.debug:
+    msg: >-
+      {{ llm_served_model_name }}: {{ llm_completion.json.choices[0].message.content | trim }}
+      ({{ llm_completion.json.usage.total_tokens }} tokens)
+
+- name: Check GPU metrics exporter
+  when: llm_monitoring_enabled | bool
+  ansible.builtin.uri:
+    url: "{{ llm_dcgm_check_url }}"
+    return_content: true
+  register: llm_dcgm
+  until: llm_dcgm.status == 200 and 'DCGM_FI_DEV_GPU_UTIL' in llm_dcgm.content
+  retries: 12
+  delay: 5

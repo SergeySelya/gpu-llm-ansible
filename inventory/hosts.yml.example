@@ -1,0 +1,8 @@
+---
+all:
+  children:
+    gpu_servers:
+      hosts:
+        gpu-01:
+          ansible_host: 10.0.10.21
+          ansible_user: ubuntu

@@ -1,0 +1,9 @@
+---
+# cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+# ansible-vault encrypt group_vars/all/vault.yml
+
+# Ключ клиентов API (Bearer). Сгенерировать: openssl rand -hex 32
+vault_llm_api_key: "CHANGE_ME"
+
+# Токен Hugging Face, нужен только для gated-моделей (Llama, Gemma и т.п.)
+vault_hf_token: ""

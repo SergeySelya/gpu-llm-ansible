@@ -1,0 +1,4 @@
+---
+nvidia_toolkit_version: "1.20.2-1"
+nvidia_toolkit_repo_url: "https://nvidia.github.io/libnvidia-container/stable/deb/amd64"
+nvidia_toolkit_gpg_url: "https://nvidia.github.io/libnvidia-container/gpgkey"

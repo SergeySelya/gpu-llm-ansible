@@ -1,0 +1,15 @@
+---
+- name: Configure GPU server and deploy LLM API
+  hosts: gpu_servers
+  become: true
+  roles:
+    - role: common
+      tags: [common]
+    - role: nvidia_driver
+      tags: [driver]
+    - role: nvidia_toolkit
+      tags: [toolkit]
+    - role: docker
+      tags: [docker]
+    - role: llm
+      tags: [llm]

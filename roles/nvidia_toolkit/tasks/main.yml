@@ -1,0 +1,20 @@
+---
+- name: Add NVIDIA Container Toolkit repository
+  ansible.builtin.deb822_repository:
+    name: nvidia-container-toolkit
+    types: deb
+    uris: "{{ nvidia_toolkit_repo_url }}"
+    suites: "/"
+    signed_by: "{{ nvidia_toolkit_gpg_url }}"
+
+# Пакеты тулкита зависят друг от друга по точной версии, пиним все четыре.
+# Регистрация runtime в /etc/docker/daemon.json - в роли docker.
+- name: Install NVIDIA Container Toolkit
+  ansible.builtin.apt:
+    name:
+      - "nvidia-container-toolkit={{ nvidia_toolkit_version }}"
+      - "nvidia-container-toolkit-base={{ nvidia_toolkit_version }}"
+      - "libnvidia-container-tools={{ nvidia_toolkit_version }}"
+      - "libnvidia-container1={{ nvidia_toolkit_version }}"
+    state: present
+    update_cache: true

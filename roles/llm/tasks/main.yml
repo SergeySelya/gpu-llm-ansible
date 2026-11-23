@@ -1,0 +1,97 @@
+---
+- name: Check API key is set
+  ansible.builtin.assert:
+    that:
+      - llm_api_key | length >= 32
+      - llm_api_key != "CHANGE_ME"
+    fail_msg: "Set vault_llm_api_key (32+ chars, e.g. `openssl rand -hex 32`) in group_vars/all/vault.yml"
+    quiet: true
+
+- name: Check Docker containers can access GPU
+  ansible.builtin.command: docker run --rm --gpus all ubuntu:24.04 nvidia-smi -L
+  register: llm_gpu_smoke
+  changed_when: false
+
+- name: Show GPUs visible in containers
+  ansible.builtin.debug:
+    var: llm_gpu_smoke.stdout_lines
+
+- name: Create LLM directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ llm_base_dir }}", mode: "0755" }
+    - { path: "{{ llm_base_dir }}/hf-cache", mode: "0755" }
+    - { path: "{{ llm_base_dir }}/nginx", mode: "0755" }
+    - { path: "{{ llm_base_dir }}/certs", mode: "0700" }
+
+- name: Write secrets env file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ llm_base_dir }}/.env"
+    mode: "0600"
+  no_log: true
+
+- name: Install provided TLS certificate
+  when: llm_tls_cert_file | length > 0
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ llm_base_dir }}/certs/{{ item.dest }}"
+    mode: "0600"
+  loop:
+    - { src: "{{ llm_tls_cert_file }}", dest: tls.crt }
+    - { src: "{{ llm_tls_key_file }}", dest: tls.key }
+  no_log: true
+  notify: Restart nginx
+
+- name: Generate self-signed TLS certificate
+  when: llm_tls_cert_file | length == 0
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -x509
+      - -newkey
+      - rsa:4096
+      - -nodes
+      - -days
+      - "825"
+      - -subj
+      - "/CN={{ llm_server_name }}"
+      - -addext
+      - "subjectAltName=DNS:{{ llm_server_name }},IP:{{ ansible_default_ipv4.address }},IP:127.0.0.1"
+      - -keyout
+      - "{{ llm_base_dir }}/certs/tls.key"
+      - -out
+      - "{{ llm_base_dir }}/certs/tls.crt"
+    creates: "{{ llm_base_dir }}/certs/tls.crt"
+
+- name: Render nginx config
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ llm_base_dir }}/nginx/nginx.conf"
+    mode: "0644"
+  notify: Restart nginx
+
+- name: Render compose project
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ llm_base_dir }}/compose.yml"
+    mode: "0644"
+
+# restart: unless-stopped + включённый docker.service = автозапуск после ребута
+- name: Start LLM stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ llm_base_dir }}"
+    state: present
+    pull: missing
+    remove_orphans: true
+
+- name: Apply nginx config changes before checks
+  ansible.builtin.meta: flush_handlers
+
+- name: Verify LLM API end to end
+  ansible.builtin.import_tasks: verify.yml
+  tags: [verify]

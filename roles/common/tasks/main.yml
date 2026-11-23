@@ -1,0 +1,35 @@
+---
+- name: Check OS is a supported Ubuntu release
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+      - ansible_distribution_release in common_supported_releases
+      - ansible_architecture == "x86_64"
+    fail_msg: >-
+      Supported: Ubuntu {{ common_supported_releases | join(', ') }} on x86_64.
+      Got {{ ansible_distribution }} {{ ansible_distribution_release }} {{ ansible_architecture }}.
+    quiet: true
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Configure UFW
+  when: common_firewall_enabled | bool
+  block:
+    - name: Allow SSH before enabling firewall
+      community.general.ufw:
+        rule: allow
+        port: "{{ ansible_port | default(22) }}"
+        proto: tcp
+        from_ip: "{{ item }}"
+      loop: "{{ common_ssh_allowed_cidrs }}"
+
+    - name: Enable UFW with default deny incoming
+      community.general.ufw:
+        state: enabled
+        policy: deny
+        direction: incoming

@@ -1,0 +1,97 @@
+---
+- name: Detect NVIDIA GPU on PCI bus
+  ansible.builtin.command: lspci -d "10de:"
+  register: nvidia_driver_lspci
+  changed_when: false
+
+- name: Fail when no NVIDIA GPU is present
+  ansible.builtin.assert:
+    that: nvidia_driver_lspci.stdout is search('VGA compatible controller|3D controller')
+    fail_msg: "No NVIDIA GPU found by lspci on {{ inventory_hostname }}"
+    quiet: true
+
+- name: Read installed driver version
+  ansible.builtin.command: nvidia-smi --query-gpu=driver_version --format=csv,noheader
+  register: nvidia_driver_current
+  changed_when: false
+  failed_when: false
+
+- name: Install driver when target branch is not active
+  when: >-
+    nvidia_driver_current.rc != 0
+    or not nvidia_driver_current.stdout_lines[0] is match(nvidia_driver_branch ~ '\.')
+  block:
+    - name: Install ubuntu-drivers-common
+      ansible.builtin.apt:
+        name: ubuntu-drivers-common
+        state: present
+
+    # Ставит подписанные Canonical prebuilt-модули (linux-modules-nvidia-*),
+    # поэтому работает с Secure Boot и не требует DKMS
+    - name: Install NVIDIA server driver via ubuntu-drivers
+      ansible.builtin.command: ubuntu-drivers install --gpgpu nvidia:{{ nvidia_driver_branch }}-server
+      changed_when: true
+      notify: Reboot to load NVIDIA kernel module
+
+- name: Install NVIDIA userspace utilities
+  ansible.builtin.apt:
+    name:
+      - "nvidia-utils-{{ nvidia_driver_branch }}-server"
+      - "nvidia-compute-utils-{{ nvidia_driver_branch }}-server"
+    state: present
+
+- name: Install Fabric Manager for NVSwitch systems
+  when: nvidia_driver_fabricmanager | bool
+  block:
+    - name: Install Fabric Manager packages
+      ansible.builtin.apt:
+        name:
+          - "nvidia-fabricmanager-{{ nvidia_driver_branch }}"
+          - "libnvidia-nscq-{{ nvidia_driver_branch }}"
+        state: present
+
+    - name: Enable Fabric Manager
+      ansible.builtin.systemd_service:
+        name: nvidia-fabricmanager
+        enabled: true
+
+- name: Reboot now if driver was installed
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable NVIDIA persistence daemon
+  ansible.builtin.systemd_service:
+    name: nvidia-persistenced
+    enabled: true
+    state: started
+
+- name: Start Fabric Manager
+  when: nvidia_driver_fabricmanager | bool
+  ansible.builtin.systemd_service:
+    name: nvidia-fabricmanager
+    state: started
+
+- name: Query GPUs after install
+  ansible.builtin.command: >-
+    nvidia-smi --query-gpu=index,name,driver_version,memory.total,compute_cap --format=csv,noheader
+  register: nvidia_driver_gpus
+  changed_when: false
+
+- name: Check driver version is new enough for the CUDA in the LLM image
+  ansible.builtin.assert:
+    that:
+      - (nvidia_driver_gpus.stdout_lines[0].split(',')[2] | trim).split('.')[0] | int >= nvidia_driver_min_major
+    fail_msg: "Driver {{ nvidia_driver_gpus.stdout_lines[0].split(',')[2] | trim }} < R{{ nvidia_driver_min_major }}"
+    quiet: true
+
+- name: Check every GPU is supported by CUDA 13 (Turing or newer)
+  ansible.builtin.assert:
+    that: (item.split(',')[4] | trim | float) >= nvidia_driver_min_compute_cap
+    fail_msg: >-
+      GPU {{ item.split(',')[1] | trim }} has compute capability
+      {{ item.split(',')[4] | trim }} < {{ nvidia_driver_min_compute_cap }}
+    quiet: true
+  loop: "{{ nvidia_driver_gpus.stdout_lines }}"
+
+- name: Show detected GPUs
+  ansible.builtin.debug:
+    var: nvidia_driver_gpus.stdout_lines

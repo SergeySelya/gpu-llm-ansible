@@ -1,0 +1,56 @@
+---
+llm_base_dir: /opt/llm
+llm_project_name: llm
+
+llm_vllm_image: "vllm/vllm-openai:v0.34.0"
+llm_nginx_image: "nginx:1.30-alpine"
+llm_dcgm_exporter_image: "nvcr.io/nvidia/k8s/dcgm-exporter:4.8.4"
+
+# Модель: любой HF-репозиторий, который поддерживает vLLM
+llm_model: "Qwen/Qwen2.5-1.5B-Instruct"
+llm_served_model_name: "qwen2.5-1.5b"
+llm_max_model_len: 8192
+llm_gpu_memory_utilization: 0.90
+llm_tensor_parallel_size: 1
+llm_extra_args: []
+
+# "all" или список индексов GPU, например ["0", "1"]
+llm_gpu_devices: all
+
+llm_api_key: ""
+llm_hf_token: ""
+
+# Внешняя точка входа - nginx с TLS. vLLM наружу не публикуется.
+llm_listen_address: "0.0.0.0"
+llm_https_port: 443
+llm_server_name: "{{ ansible_fqdn }}"
+# Свой сертификат: PEM-файлы на машине, откуда запускается Ansible.
+# Пусто - на сервере выпускается самоподписанный.
+llm_tls_cert_file: ""
+llm_tls_key_file: ""
+
+# Сеть compose. Запросы с самого сервера приходят в nginx с адреса шлюза,
+# он всегда разрешён - так работает проверка из плейбука.
+llm_docker_subnet: "172.30.0.0/24"
+llm_docker_gateway: "172.30.0.1"
+
+llm_allowed_cidrs:
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+llm_metrics_allowed_cidrs:
+  - 10.0.0.0/8
+llm_rate_limit: "10r/s"
+llm_rate_limit_burst: 20
+llm_client_max_body_size: "16m"
+
+# Мониторинг GPU
+llm_monitoring_enabled: true
+# 127.0.0.1 - только локально; для Prometheus указать внутренний IP сервера
+llm_dcgm_exporter_listen_address: "127.0.0.1"
+llm_dcgm_exporter_port: 9400
+
+# Первый старт качает модель с HF, поэтому ждём долго
+llm_health_retries: 90
+llm_health_delay: 10
+llm_smoke_prompt: "Reply with one word: pong"

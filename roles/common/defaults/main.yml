@@ -1,0 +1,19 @@
+---
+common_supported_releases:
+  - jammy     # 22.04
+  - noble     # 24.04
+  - resolute  # 26.04
+
+common_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - pciutils
+  - jq
+  - ufw
+
+# UFW закрывает хост (SSH и всё, что слушает не в Docker).
+# Порты контейнеров UFW не фильтрует - см. README, раздел «Безопасность».
+common_firewall_enabled: true
+common_ssh_allowed_cidrs:
+  - 0.0.0.0/0

@@ -1,0 +1,5 @@
+---
+- name: Reboot to load NVIDIA kernel module
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ nvidia_driver_reboot_timeout }}"
+    msg: "Reboot by Ansible: NVIDIA driver {{ nvidia_driver_branch }} installed"

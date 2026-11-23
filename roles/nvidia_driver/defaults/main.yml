@@ -1,0 +1,12 @@
+---
+# Ветка серверного драйвера из архива Ubuntu (пакеты *-server).
+# vLLM v0.34 собран на CUDA 13.0, ему нужен драйвер R580+.
+nvidia_driver_branch: "580"
+nvidia_driver_min_major: 580
+# CUDA 13 не поддерживает Maxwell/Pascal/Volta, нужен Turing (7.5) и новее
+nvidia_driver_min_compute_cap: 7.5
+
+# NVSwitch-платформы (HGX/DGX с A100/H100/B200 SXM) без Fabric Manager не поднимают GPU
+nvidia_driver_fabricmanager: false
+
+nvidia_driver_reboot_timeout: 900

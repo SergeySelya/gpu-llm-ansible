@@ -1,0 +1,18 @@
+---
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+# Регистрирует nvidia-container-runtime (то же, что делает `nvidia-ctk runtime configure`).
+# daemon.json целиком под Ansible, чтобы повторный прогон не затирал runtime.
+docker_nvidia_runtime: true
+
+docker_daemon_config:
+  log-driver: json-file
+  log-opts:
+    max-size: 50m
+    max-file: "5"
+  live-restore: true
